@@ -12,8 +12,9 @@ import java.util.Random;
  */
 public class BaseAssaultGame extends JFrame {
 
-    private static final int GAME_WIDTH = 800;
-    private static final int GAME_HEIGHT = 450;
+    // FIX: Changed to public static final for access by nested classes.
+    public static final int GAME_WIDTH = 800;
+    public static final int GAME_HEIGHT = 450;
 
     public BaseAssaultGame() {
         setTitle("Base Assault: Strategic Blitz (Java Edition)");
@@ -46,6 +47,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
     private static final int GAME_FPS = 15; // Target FPS for 8-bit update speed
     private static final long FRAME_DELAY = 1000 / GAME_FPS; // Delay in milliseconds
     private static final int SCALING = 4; // Main pixel scaling factor
+    // Access is now correct due to constants being public in BaseAssaultGame
     private static final int GROUND_Y = BaseAssaultGame.GAME_HEIGHT - 30;
     private static final double GRAVITY = 0.5;
     private static final Font PIXEL_FONT = new Font("Monospaced", Font.BOLD, SCALING * 3); // Scaled font
@@ -75,7 +77,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
     }
 
     private void initGame() {
-        // Use SCALING for consistent sizing with the Hero/Unit logic
+        // Access is now correct due to constants being public in BaseAssaultGame
         playerBase = new Base(SCALING * 2, GROUND_Y - SCALING * 25, SCALING * 25, SCALING * 25, true, 100);
         enemyBase = new Base(BaseAssaultGame.GAME_WIDTH - (SCALING * 27), GROUND_Y - SCALING * 25, SCALING * 25, SCALING * 25, false, 1000);
         hero = new Hero(playerBase.x + 50, GROUND_Y - (SCALING * 8));
@@ -129,6 +131,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         while (projIterator.hasNext()) {
             Projectile p = projIterator.next();
             p.update(delta);
+            // Access is now correct due to constants being public in BaseAssaultGame
             if (p.x < -10 || p.x > BaseAssaultGame.GAME_WIDTH + 10) {
                 projIterator.remove();
             }
@@ -177,6 +180,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         int width, height; // For Base
 
         public Rectangle getBounds() {
+            // FIX: Explicitly cast double to int
             return new Rectangle((int) x, (int) y, size, size);
         }
 
@@ -206,6 +210,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         
         @Override
         public Rectangle getBounds() {
+            // FIX: Explicitly cast double to int
             return new Rectangle((int) x, (int) y, width, height);
         }
         
@@ -250,6 +255,15 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
             g.setColor(Color.BLACK);
             g.fillRect((int) x + SCALING * 5, (int) y + SCALING * 10, SCALING * 15, SCALING * 15);
             
+            // Recovery Zone Indicator
+            if (isPlayer) {
+                g.setColor(new Color(0, 255, 0, 150)); // Bright Green semi-transparent
+                g.fillRect((int) x + SCALING * 2, (int) y + SCALING * 2, width - SCALING * 4, height - SCALING * 4);
+                g.setColor(Color.WHITE);
+                g.setFont(PIXEL_FONT.deriveFont(Font.PLAIN, SCALING * 2));
+                g.drawString("HEAL", (int) x + SCALING * 9, (int) y + SCALING * 12);
+            }
+            
             // Tower (Top-left)
             g.setColor(Color.DARK_GRAY);
             g.fillRect((int) x + SCALING * 2, (int) y - SCALING * 4, SCALING * 5, SCALING * 4);
@@ -291,6 +305,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
             if (keys[KEY_A] || keys[KeyEvent.VK_LEFT]) { this.x -= speed * delta; this.direction = -1; }
             if (keys[KEY_D] || keys[KeyEvent.VK_RIGHT]) { this.x += speed * delta; this.direction = 1; }
 
+            // Access is now correct due to constants being public in BaseAssaultGame
             this.x = Math.max(0, Math.min(this.x, BaseAssaultGame.GAME_WIDTH - this.size));
 
             // Gravity and Jumping
@@ -332,8 +347,8 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         }
 
         private void handleHealing() {
-            // Check intersection with a specific zone within the player base
-            Rectangle recoveryZone = new Rectangle(playerBase.x, playerBase.y, playerBase.width, playerBase.height);
+            // FIX: Explicitly cast double to int for Rectangle constructor
+            Rectangle recoveryZone = new Rectangle((int)playerBase.x, (int)playerBase.y, playerBase.width, playerBase.height);
 
             boolean insideZone = getBounds().intersects(recoveryZone);
             boolean isMoving = (keys[KEY_A] || keys[KEY_D] || keys[KeyEvent.VK_LEFT] || keys[KeyEvent.VK_RIGHT]);
@@ -409,7 +424,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
             int barX = (int) x + size / 2 - barWidth / 2;
             int barY = (int) y - SCALING * 4;
 
-            double hpPercent = (double) hp / maxHp;
+            double hpPercent = (double) hero.hp / hero.maxHp;
 
             // Health Bar Background (Dark Frame)
             g.setColor(Color.BLACK);
@@ -470,11 +485,13 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         boolean isFriendly;
         int moveDirection;
         Color bodyColor;
+        double moveSpeed = 1.0;
         int fireRate = 45;
         int fireTimer = 0;
         boolean isElite = false;
+        boolean isHeavy = false;
 
-        public Unit(int x, int y, boolean isFriendly, int hp, boolean isElite) {
+        public Unit(int x, int y, boolean isFriendly, int hp, boolean isElite, boolean isHeavy) {
             this.x = x;
             this.y = y;
             this.size = SCALING * 6; // Unit size 24x24
@@ -483,14 +500,23 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
             this.maxHp = hp;
             this.hp = hp;
             this.isElite = isElite;
+            this.isHeavy = isHeavy;
             this.bodyColor = isFriendly ? new Color(10, 10, 150) : new Color(150, 10, 10);
-            if (isElite) this.bodyColor = new Color(200, 50, 200); // Elite Purple
+            
+            if (isElite) {
+                this.bodyColor = new Color(200, 50, 200); // Elite Purple
+            } else if (isHeavy) {
+                this.bodyColor = new Color(100, 100, 100); // Heavy Gray
+                this.moveSpeed = 0.5; // Slower
+                this.fireRate = 20; // Faster fire
+                this.size = SCALING * 8; // Larger size
+            }
         }
 
         @Override
         public void update(double delta) {
             // Simple AI: move towards target base
-            x += moveDirection * 1 * delta; // speed is 1
+            x += moveDirection * moveSpeed * delta; 
             
             // Combat: fire periodically
             if (fireTimer <= 0) {
@@ -506,7 +532,8 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         }
 
         private void fire() {
-            projectiles.add(new Projectile((int) x + size / 2, (int) y + size * 3 / 4, moveDirection, isFriendly));
+            int projDamage = isHeavy ? 2 : 1; // Heavy units deal more damage
+            projectiles.add(new Projectile((int) x + size / 2, (int) y + size * 3 / 4, moveDirection, isFriendly, projDamage));
         }
 
         @Override
@@ -520,35 +547,37 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         }
 
         private void die() {
-            if (isElite || random.nextDouble() < 0.1) { // Normal units have a small chance to drop a coin
+            if (isElite || random.nextDouble() < 0.1) { 
                 spawnPickup((int) x, (int) y);
             }
         }
 
         @Override
         public void draw(Graphics g) {
-            // Draw a simulated enemy/friendly unit sprite
+            // Draw a simulated unit sprite
             
-            // Body (4x4)
+            // Body 
             g.setColor(bodyColor);
-            g.fillRect((int) x + SCALING * 1, (int) y + SCALING * 2, SCALING * 4, SCALING * 4);
+            g.fillRect((int) x + SCALING * 1, (int) y + SCALING * 2, size - SCALING * 2, size - SCALING * 2);
             
-            // Head (2x2)
+            // Head 
             g.setColor(isFriendly ? Color.YELLOW : Color.WHITE);
-            g.fillRect((int) x + SCALING * 2, (int) y, SCALING * 2, SCALING * 2);
+            g.fillRect((int) x + SCALING * 2, (int) y, size - SCALING * 4, SCALING * 2);
             
-            // Gun
+            // Weapon (Machine Gun for Heavy, Rifle for others)
             g.setColor(Color.BLACK);
-            int gunY = (int) y + SCALING * 4;
+            int gunY = (int) y + size / 2;
+            int gunLength = isHeavy ? SCALING * 4 : SCALING * 2;
+            
             if (moveDirection == 1) { // Facing right
-                 g.fillRect((int) x + SCALING * 5, gunY, SCALING * 2, SCALING * 1);
+                 g.fillRect((int) x + size - SCALING * 1, gunY, gunLength, SCALING * 1);
             } else { // Facing left
-                 g.fillRect((int) x - SCALING * 1, gunY, SCALING * 2, SCALING * 1);
+                 g.fillRect((int) x - gunLength + SCALING * 1, gunY, gunLength, SCALING * 1);
             }
 
-            // Draw HP Bar (simple version above the unit)
+            // Draw HP Bar 
             double hpPercent = (double) hp / maxHp;
-            int barWidth = SCALING * 6;
+            int barWidth = size;
             g.setColor(Color.BLACK);
             g.fillRect((int) x, (int) y - SCALING * 2, barWidth, SCALING);
             
@@ -557,6 +586,26 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
             g.fillRect((int) x, (int) y - SCALING * 2, (int) (barWidth * hpPercent), SCALING);
         }
     }
+    
+    // Concrete unit classes for clarity
+    class InfantryUnit extends Unit {
+        public InfantryUnit(int x, int y) {
+            super(x, y, false, 1, false, false);
+        }
+    }
+    
+    class EliteUnit extends Unit {
+        public EliteUnit(int x, int y) {
+            super(x, y, false, 3, true, false);
+        }
+    }
+    
+    class HeavyMachineGunner extends Unit {
+        public HeavyMachineGunner(int x, int y) {
+            super(x, y, false, 5, false, true); // Higher HP (5), Slower, Faster Fire
+        }
+    }
+
 
     class Projectile extends Entity {
         boolean isFriendly;
@@ -566,11 +615,15 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         double speed = SCALING * 3;
 
         public Projectile(int x, int y, int direction, boolean isFriendly) {
+            this(x, y, direction, isFriendly, isFriendly ? 10 : 1);
+        }
+        
+        public Projectile(int x, int y, int direction, boolean isFriendly, int baseDamage) {
             this.x = x;
             this.y = y;
             this.direction = direction;
             this.isFriendly = isFriendly;
-            this.damage = isFriendly ? 10 : 1;
+            this.damage = baseDamage;
             this.size = SCALING * 1;
             this.color = isFriendly ? new Color(255, 200, 0) : Color.RED; // Gold/Yellow for hero shots
         }
@@ -649,15 +702,15 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         // Player Base defensive fire
         Unit friendlyTarget = enemyUnits.stream().findFirst().orElse(null);
         if (playerBase.tower1Enabled && friendlyTarget != null) {
-            // Fire from Tower 1
-            projectiles.add(new Projectile(playerBase.x + SCALING * 4, playerBase.y - SCALING * 2, 1, true));
+            // FIX: Explicitly cast double to int
+            projectiles.add(new Projectile((int)(playerBase.x + SCALING * 4), (int)(playerBase.y - SCALING * 2), 1, true, 10));
         }
 
         // Enemy Base defensive fire
-        Unit enemyTarget = friendlyUnits.stream().findFirst().orElse(hero);
+        Unit enemyTarget = friendlyUnits.stream().findFirst().orElse(null); // FIX: Removed hero fallback
         if (enemyTarget != null) {
-            // Fire from Tower 2
-            projectiles.add(new Projectile(enemyBase.x + enemyBase.width - SCALING * 4, enemyBase.y - SCALING * 2, -1, false));
+            // FIX: Explicitly cast double to int
+            projectiles.add(new Projectile((int)(enemyBase.x + enemyBase.width - SCALING * 4), (int)(enemyBase.y - SCALING * 2), -1, false, 1));
         }
     }
     
@@ -676,17 +729,26 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
     private void handleSpawning() {
         enemySpawnTimer++;
         if (enemySpawnTimer > 120) { // Enemy spawn rate
-            boolean isElite = random.nextDouble() < 0.2; 
-            int hp = isElite ? 3 : 1;
-            // Spawn right outside the enemy base
-            enemyUnits.add(new Unit(enemyBase.x - SCALING * 8, GROUND_Y - SCALING * 6, false, hp, isElite));
+            double roll = random.nextDouble();
+            Unit newUnit;
+            
+            // FIX: Explicitly cast double to int for constructor
+            if (roll < 0.1) { // 10% Heavy Machine Gunner
+                newUnit = new HeavyMachineGunner((int)(enemyBase.x - SCALING * 8), (int)(GROUND_Y - SCALING * 8)); // Larger size needs lower Y offset
+            } else if (roll < 0.3) { // 20% Elite Trooper (0.1 to 0.3)
+                newUnit = new EliteUnit((int)(enemyBase.x - SCALING * 8), (int)(GROUND_Y - SCALING * 6));
+            } else { // 70% Infantry Unit (0.3 to 1.0)
+                newUnit = new InfantryUnit((int)(enemyBase.x - SCALING * 8), (int)(GROUND_Y - SCALING * 6));
+            }
+            
+            enemyUnits.add(newUnit);
             enemySpawnTimer = 0;
         }
 
         friendlySpawnTimer++;
         if (friendlySpawnTimer > 300) { // Friendly spawn rate
-            // Spawn right outside the player base
-            friendlyUnits.add(new Unit(playerBase.x + playerBase.width + SCALING * 2, GROUND_Y - SCALING * 6, true, 2, false));
+            // FIX: Explicitly cast double to int for constructor
+            friendlyUnits.add(new Unit((int)(playerBase.x + playerBase.width + SCALING * 2), (int)(GROUND_Y - SCALING * 6), true, 2, false, false));
             friendlySpawnTimer = 0;
         }
     }
@@ -696,7 +758,6 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
     }
 
     private void checkCollisions() {
-        // ... (Collision logic remains the same, shortened for brevity)
         // Projectile vs Hero/Units/Bases
         Iterator<Projectile> projIterator = projectiles.iterator();
         while (projIterator.hasNext()) {
@@ -816,12 +877,14 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         
         // Simulated Parallax Layer 1: Distant Mountains (Dark Green/Blue)
         g.setColor(new Color(30, 60, 40));
+        // Access is now correct due to constants being public in BaseAssaultGame
         int[] xPoints1 = {0, BaseAssaultGame.GAME_WIDTH / 4, BaseAssaultGame.GAME_WIDTH / 2, BaseAssaultGame.GAME_WIDTH * 3 / 4, BaseAssaultGame.GAME_WIDTH, BaseAssaultGame.GAME_WIDTH, 0};
         int[] yPoints1 = {GROUND_Y - 150, GROUND_Y - 200, GROUND_Y - 180, GROUND_Y - 220, GROUND_Y - 100, GROUND_Y, GROUND_Y};
         g.fillPolygon(xPoints1, yPoints1, xPoints1.length);
         
         // Simulated Parallax Layer 2: Closer Hills (Medium Green)
         g.setColor(new Color(60, 90, 70));
+        // Access is now correct due to constants being public in BaseAssaultGame
         int[] xPoints2 = {0, BaseAssaultGame.GAME_WIDTH / 6, BaseAssaultGame.GAME_WIDTH / 3, BaseAssaultGame.GAME_WIDTH * 2 / 3, BaseAssaultGame.GAME_WIDTH, BaseAssaultGame.GAME_WIDTH, 0};
         int[] yPoints2 = {GROUND_Y - 80, GROUND_Y - 120, GROUND_Y - 100, GROUND_Y - 130, GROUND_Y - 70, GROUND_Y, GROUND_Y};
         g.fillPolygon(xPoints2, yPoints2, xPoints2.length);
@@ -830,10 +893,12 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
     private void drawGround(Graphics g) {
         // Draw Ground (Darker Earth)
         g.setColor(new Color(100, 70, 40));
+        // Access is now correct due to constants being public in BaseAssaultGame
         g.fillRect(0, GROUND_Y, BaseAssaultGame.GAME_WIDTH, 30);
         
         // Draw Grassy Foreground (Brown/Yellow Stalks like in the image)
         g.setColor(new Color(180, 150, 70));
+        // Access is now correct due to constants being public in BaseAssaultGame
         for (int i = 0; i < BaseAssaultGame.GAME_WIDTH; i += SCALING * 2) {
             g.drawLine(i, GROUND_Y, i + SCALING, GROUND_Y - SCALING * 3 - random.nextInt(SCALING * 2));
         }
@@ -886,6 +951,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
         g.setColor(Color.WHITE);
         
         int baseHealthX = 10;
+        // Access is now correct due to constants being public in BaseAssaultGame
         int baseHealthY = BaseAssaultGame.GAME_HEIGHT - 10;
         
         // Player Base Health
@@ -894,6 +960,7 @@ class GamePanel extends JPanel implements KeyListener, Runnable {
 
         // Enemy Base Health
         g.setColor(new Color(255, 100, 100));
+        // Access is now correct due to constants being public in BaseAssaultGame
         g.drawString("ENEMY BASE: " + enemyBase.hp, BaseAssaultGame.GAME_WIDTH - 200, baseHealthY);
 
         // Tower Status
